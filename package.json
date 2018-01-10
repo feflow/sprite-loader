@@ -1,5 +1,5 @@
 {
-  "name": "sprite-loader",
+  "name": "sprites-loader",
   "version": "0.4.1",
   "license": "MIT",
   "description": "sprite loader module for webpack",
@@ -14,5 +14,6 @@
     "spritesmith": "^3.2.1"
   },
   "devDependencies": {
-  }
+  },
+  "repository": "https://github.com/iv-web/sprite-loader.git"
 }
