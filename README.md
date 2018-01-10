@@ -1,9 +1,9 @@
-<h1 align="center">sprite-loader</h1>
+<h1 align="center">sprites-loader</h1>
 
 <h2 align="center">Install</h2>
 
 ```bash
-npm install --save-dev sprite-loader
+npm install --save-dev sprites-loader
 ```
 
 <h2 align="center">Usage</h2>
@@ -28,7 +28,7 @@ module.exports = {
     rules: [
       {
         test: /\.css$/,
-        use: [ 'style-loader', 'css-loader', 'sprite-loader' ]
+        use: [ 'style-loader', 'css-loader', 'sprites-loader' ]
       }
     ]
   }
