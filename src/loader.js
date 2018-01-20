@@ -63,7 +63,7 @@ module.exports = function(content) {
                 var absolutePathItem = imagesPathMap[p1];
                 var coordinates = result.coordinates;
                 var image = coordinates[absolutePathItem];
-                var cssVal = 'url("' + spriteRelativePath + '")' + ' ' + image.x + 'px' + ' ' + image.y + 'px';
+                var cssVal = 'url("' + spriteRelativePath + '")' + ' -' + image.x + 'px' + ' -' + image.y + 'px';
                 return cssVal;
             })
             callback(null, content);
