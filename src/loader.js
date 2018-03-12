@@ -1,14 +1,14 @@
 
-var fs = require('fs');
-var path = require('path');
-var mkdirp = require('mkdirp');
-var Spritesmith = require('spritesmith');
-var loaderUtils = require('loader-utils');
-var spritesmith = new Spritesmith();
+const fs = require('fs');
+const path = require('path');
+const mkdirp = require('mkdirp');
+const Spritesmith = require('spritesmith');
+const loaderUtils = require('loader-utils');
+const spritesmith = new Spritesmith();
 
 module.exports = function(content) {
     let item, assets = [],
-        imagesPathMap = {},
+        imagesPathMap = [],
         callback = this.async(),
         resourcePath = this.resourcePath,
         options = loaderUtils.getOptions(this) || {},
@@ -19,10 +19,13 @@ module.exports = function(content) {
         
     while((item = spriteImageRegexp.exec(content))) {
         if(item && item[1]) {
-           var assetPath = loaderUtils.stringifyRequest(this, item[1]);
-           var absolutePath = path.resolve(context, sourceRoot, JSON.parse(assetPath));
+           let assetPath = loaderUtils.stringifyRequest(this, item[1]);
+           let absolutePath = path.resolve(context, sourceRoot, JSON.parse(assetPath));
            assets.push(absolutePath);
-           imagesPathMap[item[1]] = absolutePath;
+           imagesPathMap.push({
+               path: absolutePath,
+               url: item[0]
+           })
         }
     }
 
@@ -52,20 +55,55 @@ module.exports = function(content) {
                 content: result.image
             });
     
-            var spritesImgPath = path.join(outputPath, url);
+            let spritesImgPath = path.join(outputPath, url);
             fs.writeFileSync(spritesImgPath, result.image);
             spriteImageRegexp.lastIndex = 0;
             let spriteRelativePath = path.relative(path.dirname(resourcePath), spritesImgPath);
             spriteRelativePath = loaderUtils.stringifyRequest(this, spriteRelativePath);
             spriteRelativePath = JSON.parse(spriteRelativePath);
 
-            content = content.replace(spriteImageRegexp, function(match, p1) {
-                var absolutePathItem = imagesPathMap[p1];
-                var coordinates = result.coordinates;
-                var image = coordinates[absolutePathItem];
-                var cssVal = 'url("' + spriteRelativePath + '")' + ' -' + image.x + 'px' + ' -' + image.y + 'px';
-                return cssVal;
-            })
+
+            let match = null;
+            let backgroundSize = 'background-size:' + result.properties.height + 'px ' + result.properties.width + 'px;';
+            let lastIndex = 0;
+            imagesPathMap.forEach(function(item) {
+                
+                let index = content.indexOf(item.url, lastIndex);
+                let len = item.url.length;
+                lastIndex = index + len;
+               
+                let preContent = content.substring(0, index);
+                let afterContent = content.substring(index);
+                let matchLength = len;
+                let i;
+                for(i = matchLength; i < afterContent.length; i++) {
+                    if(afterContent.charAt(i) == ';' || afterContent.charAt(i) == '}') {
+                        break;
+                    }
+                }
+
+                let end;
+                if(i < afterContent.length) {
+                    if(afterContent[i] == ';') {
+                        end = i + 1;
+                        afterContent = afterContent.substring(0, end) + backgroundSize + afterContent.substring(end);
+                    } else {
+                        end = i;
+                        afterContent = afterContent.substring(0, end) + ';\n' +  backgroundSize + afterContent.substring(end);
+                    }
+                    
+                } 
+
+                let absolutePathItem = item.path;
+                let coordinates = result.coordinates;
+                let image = coordinates[absolutePathItem];
+                let cssVal = 'url("' + spriteRelativePath + '")' + ' -' + image.x + 'px' + ' -' + image.y + 'px';
+
+                afterContent = cssVal + afterContent.substring(matchLength);
+                content = preContent + afterContent;
+                
+            });
+
             callback(null, content);
         })
     });
