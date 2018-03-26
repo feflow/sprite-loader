@@ -64,7 +64,7 @@ module.exports = function(content) {
 
 
             let match = null;
-            let backgroundSize = 'background-size:' + result.properties.height + 'px ' + result.properties.width + 'px;';
+            let backgroundSize = 'background-size:' + result.properties.width + 'px ' + result.properties.height + 'px;';
             let lastIndex = 0;
             imagesPathMap.forEach(function(item) {
                 
