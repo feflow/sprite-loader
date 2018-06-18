@@ -1,111 +1,153 @@
+'use strict';
 
 const fs = require('fs');
 const path = require('path');
 const mkdirp = require('mkdirp');
 const Spritesmith = require('spritesmith');
 const loaderUtils = require('loader-utils');
-const spritesmith = new Spritesmith();
+
+
+const spriteUrlPattern = /url\((?:"|')?(\S+)\?__sprite(?:"|')?\)/;
+
+const helper = require('./helper');
+const parser = require('./parser');
+
+const getSpriteRequest = helper.getSpriteRequest;
+const needAddSemicolon = helper.needAddSemicolon;
 
 module.exports = function(content) {
-    let item, assets = [],
-        imagesPathMap = [],
+    let assets = [],
         callback = this.async(),
         resourcePath = this.resourcePath,
         options = loaderUtils.getOptions(this) || {},
         outputPath = options.outputPath,
-        spriteImageRegexp = /url\((?:"|')(\S+)\?\_\_sprite(?:"|')\)/g,
-        context =  options.context || this.rootContext || this.options && this.options.context,
+        context = options.context || this.rootContext || this.options && this.options.context,
         sourceRoot = path.dirname(path.relative(context, resourcePath));
-        
-    while((item = spriteImageRegexp.exec(content))) {
-        if(item && item[1]) {
-           let assetPath = loaderUtils.stringifyRequest(this, item[1]);
-           let absolutePath = path.resolve(context, sourceRoot, JSON.parse(assetPath));
-           assets.push(absolutePath);
-           imagesPathMap.push({
-               path: absolutePath,
-               url: item[0]
-           })
-        }
-    }
-
-    if(!assets.length) {
+    let res = parser(content);
+    if (!Array.isArray(res) || !res.length) {
         callback(null, content);
         return;
     }
 
-    Spritesmith.run({src: assets}, function handleResult (err, result) {
-        if(err) {
-            callback(err, '');
+    for (let i = 0; i < res.length; i++) {
+        let property = res[i].property;
+        let urlPath = res[i][property];
+
+        let assetPath = loaderUtils.stringifyRequest(this, urlPath);
+        let absolutePath = path.resolve(context, sourceRoot, JSON.parse(assetPath));
+        assets.push(absolutePath);
+        res[i]['absolutePath'] = absolutePath;
+    }
+
+    if (!assets.length) {
+        callback(null, content);
+        return;
+    }
+
+
+
+    Spritesmith.run({ src: assets }, function handleResult(err, result) {
+        if (err) {
+            callback(err);
             return;
         }
         let dirPath = path.dirname(assets[0]);
-        if(outputPath) {
+        if (outputPath) {
             outputPath = path.join(context, outputPath);
         }
         outputPath = outputPath || dirPath;
+
         mkdirp(outputPath, function(err) {
-            if(err) {
-                callback(err, '')
+            if (err) {
+                callback(err)
                 return;
             }
-            let name = options.name || 'sprite-[hash:6].png';
-            let url = loaderUtils.interpolateName(this, name, {
-                context,
-                content: result.image
-            });
-    
-            let spritesImgPath = path.join(outputPath, url);
-            fs.writeFileSync(spritesImgPath, result.image);
-            spriteImageRegexp.lastIndex = 0;
-            let spriteRelativePath = path.relative(path.dirname(resourcePath), spritesImgPath);
-            spriteRelativePath = loaderUtils.stringifyRequest(this, spriteRelativePath);
-            spriteRelativePath = JSON.parse(spriteRelativePath);
 
+            let spriteOutputPath = helper.getSpriteOutputPath(context, outputPath, options.name, result.image);
 
-            let match = null;
-            let backgroundSize = 'background-size:' + result.properties.width + 'px ' + result.properties.height + 'px;';
-            let lastIndex = 0;
-            imagesPathMap.forEach(function(item) {
-                
-                let index = content.indexOf(item.url, lastIndex);
-                let len = item.url.length;
-                lastIndex = index + len;
-               
-                let preContent = content.substring(0, index);
-                let afterContent = content.substring(index);
-                let matchLength = len;
-                let i;
-                for(i = matchLength; i < afterContent.length; i++) {
-                    if(afterContent.charAt(i) == ';' || afterContent.charAt(i) == '}') {
-                        break;
-                    }
+            fs.writeFileSync(spriteOutputPath, result.image);
+
+            let spriteImageWidth = result.properties.width,
+                spriteImageHeight = result.properties.height;
+
+            function spriteCodeGenerator(
+                spriteImage,
+                eleWidth,
+                eleHeight,
+                needWidth,
+                needHeight) {
+                eleWidth = parseFloat(eleWidth);
+                eleHeight = parseFloat(eleHeight);
+
+                let widthScale = eleWidth / spriteImage.width;
+                let heightScale = eleHeight / spriteImage.height;
+
+                let propertyValueMap = [];
+
+                propertyValueMap.push({
+                    property: 'background-size',
+                    value: `${widthScale * spriteImageWidth}px ${heightScale * spriteImageHeight}px`
+                });
+
+                propertyValueMap.push({
+                    property: 'background-position',
+                    value: `-${spriteImage.x * widthScale}px -${spriteImage.y * widthScale}px`
+                })
+
+                if (needWidth) {
+                    propertyValueMap.push({
+                        property: 'width',
+                        value: `${eleWidth}px`
+                    });
+                }
+                if (needHeight) {
+                    propertyValueMap.push({
+                        property: 'height',
+                        value: `${eleHeight}px`
+                    });
                 }
 
-                let end;
-                if(i < afterContent.length) {
-                    if(afterContent[i] == ';') {
-                        end = i + 1;
-                        afterContent = afterContent.substring(0, end) + backgroundSize + afterContent.substring(end);
-                    } else {
-                        end = i;
-                        afterContent = afterContent.substring(0, end) + ';\n' +  backgroundSize + afterContent.substring(end);
-                    }
-                    
-                } 
+                return propertyValueMap.map((item) => {
+                    return `${item.property}:${item.value};\n`;
+                }).join('');
 
-                let absolutePathItem = item.path;
-                let coordinates = result.coordinates;
-                let image = coordinates[absolutePathItem];
-                let cssVal = 'url("' + spriteRelativePath + '")' + ' -' + image.x + 'px' + ' -' + image.y + 'px';
+            }
 
-                afterContent = cssVal + afterContent.substring(matchLength);
-                content = preContent + afterContent;
-                
-            });
+            let generatorContent = [content];
 
-            callback(null, content);
+            for (let index = res.length - 1; index >= 0; index--) {
+                let absolutePath = res[index].absolutePath,
+                    coordinates = result.coordinates,
+                    spriteImage = coordinates[absolutePath],
+                    eleWidth = res[index].width || spriteImage.width,
+                    eleHeight = res[index].height || spriteImage.height,
+                    needWidth = !res[index].width,
+                    needHeight = !res[index].height;
+
+                let spriteCode = spriteCodeGenerator(spriteImage, eleWidth, eleHeight, needWidth, needHeight);
+                content = generatorContent.shift();
+
+                let currMatchStart = res[index].start,
+                    currMatchLength = res[index].length;
+                let currMatchContentAfter = content.substring(currMatchStart + currMatchLength),
+                    currMatchContent = content.substr(currMatchStart, currMatchLength),
+                    currMatchContentBefore = content.substring(0, currMatchStart);
+                generatorContent.unshift(currMatchContentAfter);
+
+                let spriteRequest = getSpriteRequest(context, resourcePath, spriteOutputPath);
+                currMatchContent = currMatchContent.replace(spriteUrlPattern, () => {
+                    return `url("${spriteRequest}")`;
+                })
+
+                if (needAddSemicolon(currMatchContent)) {
+                    spriteCode = ';' + spriteCode;
+                }
+                generatorContent.unshift(spriteCode);
+                generatorContent.unshift(currMatchContent);
+                generatorContent.unshift(currMatchContentBefore);
+            }
+            callback(null, generatorContent.join(''));
         })
     });
-    
+
 }

@@ -1,19 +1,19 @@
 {
-  "name": "sprites-loader",
-  "version": "0.7.1",
-  "license": "MIT",
-  "description": "sprite loader module for webpack",
-  "main": "index.js",
-  "scripts": {
-    "test": "webpack --config ./test/webpack.config.js"
-  },
-  "author": "",
-  "dependencies": {
-    "loader-utils": "^1.1.0",
-    "mkdirp": "^0.5.1",
-    "spritesmith": "^3.2.1"
-  },
-  "devDependencies": {
-  },
-  "repository": "https://github.com/iv-web/sprite-loader.git"
+    "name": "sprites-loader",
+    "version": "0.8.0",
+    "license": "MIT",
+    "description": "sprite loader module for webpack",
+    "main": "index.js",
+    "scripts": {
+        "test": "webpack --config ./test/webpack.config.js"
+    },
+    "author": "",
+    "dependencies": {
+        "fastparse": "^1.1.1",
+        "loader-utils": "^1.1.0",
+        "mkdirp": "^0.5.1",
+        "spritesmith": "^3.2.1"
+    },
+    "devDependencies": {},
+    "repository": "https://github.com/iv-web/sprite-loader.git"
 }
