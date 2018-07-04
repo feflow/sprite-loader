@@ -20,6 +20,7 @@ module.exports = function(content) {
         callback = this.async(),
         resourcePath = this.resourcePath,
         options = loaderUtils.getOptions(this) || {},
+        padding = options.padding || 2,
         outputPath = options.outputPath,
         context = options.context || this.rootContext || this.options && this.options.context,
         sourceRoot = path.dirname(path.relative(context, resourcePath));
@@ -46,7 +47,7 @@ module.exports = function(content) {
 
 
 
-    Spritesmith.run({ src: assets }, function handleResult(err, result) {
+    Spritesmith.run({ src: assets, padding: padding }, function handleResult(err, result) {
         if (err) {
             callback(err);
             return;
