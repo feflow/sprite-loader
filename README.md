@@ -40,6 +40,7 @@ module.exports = {
 |**`name`**|`{String}`|`sprite-[hash:6].png`|Configure a custom filename template for your file|
 |**`context`**|`{String}`|`this.options.context`|Configure a custom file context, defaults to `webpack.config.js` [context](https://webpack.js.org/configuration/entry-context/#context)|
 |**`outputPath`**|`{String\|Function}`|`Original images path`|Configure a custom `output` path for your files|
+|**`padding`**|`{Number}`|`2px`|padding between images|
   
 you can set css property width and height, the sprite's `background-size` will be set according to the css property width and height, the first value of `background-size` property is `(width/imageWidth) * spriteWidth`, the second value of `background-size` property calculate as same the the second value. if you not set width and height, the element will set width and height to image's width and height. 
 
